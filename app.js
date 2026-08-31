@@ -24,15 +24,6 @@ const userRouter = require("./routes/user.js");
 // const MONGO_URL ='mongodb://127.0.0.1:27017/wanderstay';
 const dbUrl = process.env.ATLASDB_URL;
 
-
-    main()
-    .then((res) =>{console.log("connected to DB")})
-.catch(err => console.log(err));
-
-async function main() {
-    await mongoose.connect(dbUrl);
-}
-
 app.set("view engine", "ejs");
 app.set("views" , path.join(__dirname, "views"));
 app.use(express.urlencoded({extended: true}));
@@ -48,7 +39,7 @@ const store = MongoStore.create({
     touchAfter: 24 * 3600,
 });
 
-store.on("error", ()=>{
+store.on("error", (err)=>{
     console.log("Error in MONGO SESSION STORE", err);
 })
 
@@ -71,14 +62,16 @@ const sessionOptions = {
 app.use(session(sessionOptions));
 app.use(flash()); 
 
-app.use(passport.initialize());
-app.use(passport.session());
 passport.use(new LocalStrategy(User.authenticate())); 
-
 passport.serializeUser(User.serializeUser());
 passport.deserializeUser(User.deserializeUser());
 
+app.use(passport.initialize());
+app.use(passport.session());
+
+
 app.use((req, res, next) =>{
+    console.log("CURRENT USER:", req.user);
     res.locals.success = req.flash("success");
     res.locals.error = req.flash("error");
     res.locals.currUser = req.user;
@@ -109,6 +102,18 @@ app.use("/" , userRouter);
         // res.status(statusCode).send(message);
     })
 
-app.listen("8080", ()=>{
-    console.log("Server is listening on port 8080.");
-})
+    async function main() {
+    await mongoose.connect(dbUrl);
+}
+
+main()
+    .then(() => {
+        console.log("connected to DB");
+
+        app.listen(8080, () => {
+            console.log("Server is listening on port 8080.");
+        });
+    })
+    .catch((err) => {
+        console.log("MongoDB connection error:", err);
+    });
